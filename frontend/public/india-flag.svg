@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" role="img" aria-label="Flag of India">
+  <defs>
+    <line id="chakra-spoke" x1="450" y1="244" x2="450" y2="356" stroke="#000080" stroke-width="3" />
+  </defs>
+  <rect width="900" height="600" fill="#ffffff" />
+  <rect width="900" height="200" fill="#ff9933" />
+  <rect y="400" width="900" height="200" fill="#138808" />
+  <circle cx="450" cy="300" r="56" fill="none" stroke="#000080" stroke-width="6" />
+  <g>
+    <use href="#chakra-spoke" />
+    <use href="#chakra-spoke" transform="rotate(15 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(30 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(45 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(60 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(75 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(90 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(105 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(120 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(135 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(150 450 300)" />
+    <use href="#chakra-spoke" transform="rotate(165 450 300)" />
+  </g>
+  <circle cx="450" cy="300" r="11" fill="#000080" />
+</svg>
