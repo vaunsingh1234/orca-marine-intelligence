@@ -78,7 +78,7 @@
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  padding: 7vh 8vw 28px;
+  padding: 5vh 8vw 28px;
 }
 
 .login-topbar {
@@ -130,14 +130,16 @@
 }
 
 .login-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
-  gap: clamp(40px, 8vw, 110px);
-  align-items: start;
-  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 3vh, 40px);
+  max-width: 560px;
   width: 100%;
   margin: 0 auto;
-  padding: 8vh 0 6vh;
+  padding: 2vh 0;
+  text-align: center;
 }
 
 .login-kicker,
@@ -163,9 +165,13 @@
   color: var(--muted);
 }
 
+.login-intro {
+  width: 100%;
+}
+
 .login-intro h1 {
-  margin: 0;
-  max-width: 16ch;
+  margin: 0 auto;
+  max-width: 34ch;
   font-size: clamp(16px, 1.5vw, 20px);
   font-weight: 500;
   line-height: 1.55;
@@ -177,15 +183,18 @@
   display: block;
   width: 72px;
   height: 1px;
-  margin-top: 28px;
+  margin: 24px auto 0;
   background: var(--line);
 }
 
 .login-panel {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
+  width: 100%;
+  max-width: 380px;
   padding-top: 4px;
+  text-align: left;
 }
 
 .login-field {
@@ -264,8 +273,9 @@
 .login-steps {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px 18px;
-  margin: 28px 0 0;
+  margin: 24px 0 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
@@ -512,9 +522,8 @@
   }
 
   .login-main {
-    grid-template-columns: 1fr;
-    gap: 48px;
-    padding: 8vh 0 5vh;
+    gap: 36px;
+    padding: 5vh 0 4vh;
   }
 
   .login-intro h1 {
