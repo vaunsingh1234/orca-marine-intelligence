@@ -1,0 +1,154 @@
+.ocean {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #020a13;
+  pointer-events: none;
+}
+
+.ocean-photo {
+  position: absolute;
+  inset: 0;
+  background-image: url('/ocean-hero.jpg');
+  background-size: cover;
+  background-position: 46% 42%;
+  background-repeat: no-repeat;
+  animation: ocean-breathe 40s ease-in-out infinite;
+}
+
+/* Cools the photo toward the ORCA palette and sinks the lower half into the deep. */
+.ocean-tint {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(62% 50% at 76% 8%, rgba(86, 196, 245, 0.14), transparent 72%),
+    linear-gradient(
+      185deg,
+      rgba(5, 30, 52, 0.24) 0%,
+      rgba(3, 16, 30, 0.38) 46%,
+      rgba(1, 7, 14, 0.8) 100%
+    );
+}
+
+/* Volumetric shafts angling down from the surface, layered over the photo's own rays. */
+.ocean-rays {
+  position: absolute;
+  inset: -14% -8% 26%;
+  filter: blur(18px);
+  mix-blend-mode: screen;
+  opacity: 0.38;
+}
+
+.ocean-rays span {
+  position: absolute;
+  top: -16%;
+  left: var(--x);
+  width: var(--w);
+  height: 140%;
+  background: linear-gradient(
+    180deg,
+    rgba(178, 233, 255, 0.42) 0%,
+    rgba(140, 210, 245, 0.13) 44%,
+    transparent 80%
+  );
+  transform-origin: top center;
+  transform: rotate(12deg);
+  animation: ray-sway 26s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+
+.ocean-motes {
+  position: absolute;
+  inset: 0;
+}
+
+.ocean-motes span {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(190, 238, 255, 0.7);
+  box-shadow: 0 0 8px rgba(150, 224, 255, 0.65);
+  opacity: 0;
+  animation-name: mote-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.ocean-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    118% 100% at 50% 42%,
+    transparent 42%,
+    rgba(1, 7, 13, 0.48) 86%,
+    rgba(1, 6, 11, 0.76) 100%
+  );
+}
+
+@keyframes ocean-breathe {
+  0%,
+  100% {
+    transform: scale(1.02);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ray-sway {
+  0%,
+  100% {
+    transform: rotate(12deg) translateX(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: rotate(16deg) translateX(26px);
+    opacity: 1;
+  }
+}
+
+@keyframes mote-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 40px, 0);
+  }
+  18% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), -220px, 0);
+  }
+}
+
+@media (max-width: 1024px) {
+  .ocean-photo {
+    background-position: 44% 34%;
+  }
+
+  /* Card fills more of a narrow viewport, so deepen the water behind it. */
+  .ocean-tint {
+    background:
+      radial-gradient(62% 50% at 76% 6%, rgba(86, 196, 245, 0.12), transparent 72%),
+      linear-gradient(
+        185deg,
+        rgba(4, 24, 43, 0.44) 0%,
+        rgba(3, 16, 30, 0.56) 42%,
+        rgba(1, 7, 14, 0.86) 100%
+      );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocean-photo,
+  .ocean-rays span,
+  .ocean-motes span {
+    animation: none;
+  }
+
+  .ocean-motes span {
+    opacity: 0.45;
+  }
+}
