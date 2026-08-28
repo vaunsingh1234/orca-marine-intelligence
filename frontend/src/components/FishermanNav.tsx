@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   BellIcon,
+  BoatIcon,
   BrandMark,
   ChevronDownIcon,
+  CompassIcon,
   CloudRainIcon,
   LogoutIcon,
   PinIcon,
@@ -17,9 +19,18 @@ type FishermanNavProps = {
   marine: MarineConditions
   onSignOut: () => void
   onBrandClick?: () => void
+  onOpenVessels?: () => void
+  onOpenLocations?: () => void
 }
 
-export default function FishermanNav({ session, marine, onSignOut, onBrandClick }: FishermanNavProps) {
+export default function FishermanNav({
+  session,
+  marine,
+  onSignOut,
+  onBrandClick,
+  onOpenVessels,
+  onOpenLocations,
+}: FishermanNavProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -102,6 +113,32 @@ export default function FishermanNav({ session, marine, onSignOut, onBrandClick 
           {menuOpen ? (
             <div className="fh-popover fh-popover-menu" role="menu">
               <p>{session.email || formatPhone(session.phone)}</p>
+              {onOpenVessels ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onOpenVessels()
+                  }}
+                >
+                  <BoatIcon width={16} height={16} />
+                  Vessel management
+                </button>
+              ) : null}
+              {onOpenLocations ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onOpenLocations()
+                  }}
+                >
+                  <CompassIcon width={16} height={16} />
+                  Location tracking
+                </button>
+              ) : null}
               <button type="button" role="menuitem" onClick={onSignOut}>
                 <LogoutIcon width={16} height={16} />
                 Sign out

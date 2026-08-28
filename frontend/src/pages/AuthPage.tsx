@@ -14,18 +14,17 @@ import {
   UserIcon,
 } from '../components/Icons'
 import { usesEmail, type ProfessionId } from '../auth/professions'
+import { AuthApiError, login, register } from '../auth/api'
 import {
-  createUser,
-  findByEmail,
   findByIdentifier,
-  findByPhone,
   maskEmail,
   maskPhone,
+  readProfession,
   readRememberedIdentifier,
+  rememberProfession,
   resetPassword,
   saveSession,
-  toSession,
-  verifyPassword,
+  toSessionFromAccount,
   type Session,
   type StoredUser,
 } from '../auth/store'
@@ -165,24 +164,22 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
     }
 
     setPending(true)
-    await wait()
-    const user = findByIdentifier(value)
-    if (!user) {
+    try {
+      const identifierValue = looksLikeEmail ? value : value.replace(/\D/g, '').slice(-10)
+      const user = await login(identifierValue, signInPassword)
+      const profession = readProfession(String(user.id)) ?? 'fisherman'
+      const session = toSessionFromAccount(user, profession)
+      saveSession(session, remember)
+      onAuthenticated(session)
+    } catch (caught) {
+      if (caught instanceof AuthApiError) {
+        setError(caught.message)
+        return
+      }
+      setError('Unable to reach ORCA. Make sure the backend is running.')
+    } finally {
       setPending(false)
-      setNeedsRegister(true)
-      setError('You are not a registered member. Please register first to use ORCA.')
-      return
     }
-    const ok = await verifyPassword(user, signInPassword)
-    setPending(false)
-    if (!ok) {
-      setError('Incorrect password. Try again or reset it using “Forgot password”.')
-      return
-    }
-
-    const session = toSession(user)
-    saveSession(session, remember)
-    onAuthenticated(session)
   }
 
   async function handleRegisterDetails() {
@@ -195,11 +192,6 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
       setError('Enter a valid 10-digit Indian mobile number.')
       return
     }
-    if (findByPhone(phone)) {
-      setNeedsRegister(false)
-      setError('This mobile number is already registered. Sign in instead.')
-      return
-    }
     if (!profession) {
       setError('Select your profession or role.')
       return
@@ -207,10 +199,6 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
     if (emailRequired) {
       if (!isValidEmail(email)) {
         setError('Enter a valid email address — your verification code goes there.')
-        return
-      }
-      if (findByEmail(email)) {
-        setError('This email address is already registered. Sign in instead.')
         return
       }
     }
@@ -276,18 +264,26 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
     }
 
     setPending(true)
-    await wait()
-    const user = await createUser({
-      name,
-      phone,
-      email: emailRequired ? email : undefined,
-      profession,
-      password,
-    })
-    const session = toSession(user)
-    saveSession(session, true)
-    setPending(false)
-    onAuthenticated(session)
+    try {
+      const user = await register({
+        full_name: name.trim(),
+        phone_number: phone || undefined,
+        email: emailRequired ? email.trim() : undefined,
+        password,
+      })
+      rememberProfession(String(user.id), profession)
+      const session = toSessionFromAccount(user, profession)
+      saveSession(session, true)
+      onAuthenticated(session)
+    } catch (caught) {
+      if (caught instanceof AuthApiError) {
+        setError(caught.message)
+        return
+      }
+      setError('Unable to reach ORCA. Make sure the backend is running.')
+    } finally {
+      setPending(false)
+    }
   }
 
   async function handleForgotIdentify() {

@@ -27,6 +27,8 @@ type FishermanAnalysisPageProps = {
   query: string
   onSignOut: () => void
   onAskAgain: () => void
+  onOpenVessels: () => void
+  onOpenLocations: () => void
 }
 
 export default function FishermanAnalysisPage({
@@ -35,6 +37,8 @@ export default function FishermanAnalysisPage({
   query,
   onSignOut,
   onAskAgain,
+  onOpenVessels,
+  onOpenLocations,
 }: FishermanAnalysisPageProps) {
   const [mapFocus, setMapFocus] = useState<'route' | 'zone' | null>(null)
   const mapRef = useRef<HTMLElement | null>(null)
@@ -69,6 +73,8 @@ export default function FishermanAnalysisPage({
           marine={marine}
           onSignOut={onSignOut}
           onBrandClick={onAskAgain}
+          onOpenVessels={onOpenVessels}
+          onOpenLocations={onOpenLocations}
         />
 
         <main className="fa-main">

@@ -30,6 +30,8 @@ type FishermanHomePageProps = {
   marine: MarineConditions
   onSignOut: () => void
   onAnalyze: (query: string) => void
+  onOpenVessels: () => void
+  onOpenLocations: () => void
 }
 
 export default function FishermanHomePage({
@@ -37,6 +39,8 @@ export default function FishermanHomePage({
   marine,
   onSignOut,
   onAnalyze,
+  onOpenVessels,
+  onOpenLocations,
 }: FishermanHomePageProps) {
   const [query, setQuery] = useState('')
   const [listening, setListening] = useState(false)
@@ -96,7 +100,13 @@ export default function FishermanHomePage({
       <OceanScene />
 
       <div className="fh-layer">
-        <FishermanNav session={session} marine={marine} onSignOut={onSignOut} />
+        <FishermanNav
+          session={session}
+          marine={marine}
+          onSignOut={onSignOut}
+          onOpenVessels={onOpenVessels}
+          onOpenLocations={onOpenLocations}
+        />
 
         <main className="fh-main">
           <section className="fh-hero">

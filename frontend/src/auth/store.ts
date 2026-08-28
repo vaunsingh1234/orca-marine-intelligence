@@ -31,6 +31,22 @@ export type NewUser = {
 const USERS_KEY = 'orca.users.v1'
 const SESSION_KEY = 'orca.session.v1'
 const REMEMBER_KEY = 'orca.remember.v1'
+const PROFESSION_KEY = 'orca.profession.v1'
+
+const PROFESSION_IDS: ProfessionId[] = [
+  'fisherman',
+  'researcher',
+  'coastal-authority',
+  'disaster-agency',
+  'maritime-operator',
+]
+
+export type AuthAccount = {
+  id: number
+  full_name: string
+  email: string | null
+  phone_number: string | null
+}
 
 function randomId() {
   const uuid = globalThis.crypto?.randomUUID?.()
@@ -158,17 +174,50 @@ export function toSession(user: StoredUser): Session {
   }
 }
 
+export function toSessionFromAccount(user: AuthAccount, profession: ProfessionId): Session {
+  return {
+    userId: String(user.id),
+    name: user.full_name,
+    phone: user.phone_number || '',
+    email: user.email || undefined,
+    profession,
+    signedInAt: new Date().toISOString(),
+  }
+}
+
+function isProfessionId(value: unknown): value is ProfessionId {
+  return typeof value === 'string' && PROFESSION_IDS.includes(value as ProfessionId)
+}
+
+export function rememberProfession(userId: string, profession: ProfessionId) {
+  try {
+    const raw = localStorage.getItem(PROFESSION_KEY)
+    const map = raw ? (JSON.parse(raw) as Record<string, ProfessionId>) : {}
+    map[userId] = profession
+    localStorage.setItem(PROFESSION_KEY, JSON.stringify(map))
+  } catch {
+    /* ignore quota / private-mode failures */
+  }
+}
+
+export function readProfession(userId: string): ProfessionId | undefined {
+  try {
+    const raw = localStorage.getItem(PROFESSION_KEY)
+    if (!raw) return undefined
+    const map = JSON.parse(raw) as Record<string, ProfessionId>
+    return isProfessionId(map[userId]) ? map[userId] : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function readSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<Session>
-    if (typeof parsed?.userId !== 'string') return null
-    // Drop sessions whose account was removed.
-    if (!listUsers().some((user) => user.id === parsed.userId)) {
-      clearSession()
-      return null
-    }
+    if (typeof parsed?.userId !== 'string' || typeof parsed?.name !== 'string') return null
+    if (!isProfessionId(parsed.profession)) return null
     return parsed as Session
   } catch {
     return null

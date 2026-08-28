@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import OceanScene from '../components/OceanScene'
 import {
   AlertIcon,
+  BoatIcon,
   BrandMark,
+  CompassIcon,
   GlobeIcon,
   LogoutIcon,
   SendIcon,
@@ -14,6 +16,10 @@ import { formatPhone, type Session } from '../auth/store'
 import { useMarineConditions } from '../marine/useMarineConditions'
 import FishermanAnalysisPage from './FishermanAnalysisPage'
 import FishermanHomePage from './FishermanHomePage'
+import VesselManagementPage from './VesselManagementPage'
+import LocationManagementPage from './LocationManagementPage'
+import { listLocations, type LocationRecord } from '../locations/api'
+import { fetchWeatherForLocation, WeatherApiError, type WeatherNow } from '../weather/api'
 import './DashboardPage.css'
 
 const PROMPTS: Record<ProfessionId, string[]> = {
@@ -44,13 +50,6 @@ const PROMPTS: Record<ProfessionId, string[]> = {
   ],
 }
 
-const METRICS = [
-  { label: 'Sea surface temp', value: '28.6', unit: '°C', trend: '+0.4 vs 7-day' },
-  { label: 'Significant wave height', value: '1.4', unit: 'm', trend: 'Calm to moderate' },
-  { label: 'Wind speed', value: '18', unit: 'km/h', trend: 'South-westerly' },
-  { label: 'Chlorophyll-a', value: '0.82', unit: 'mg/m³', trend: 'Bloom forming' },
-]
-
 const ADVISORIES = [
   {
     icon: <AlertIcon />,
@@ -78,14 +77,55 @@ type DashboardPageProps = {
 }
 
 export default function DashboardPage({ session, onSignOut }: DashboardPageProps) {
-  if (session.profession === 'fisherman') {
-    return <FishermanFlow session={session} onSignOut={onSignOut} />
+  const [section, setSection] = useState<'home' | 'vessels' | 'locations'>('home')
+
+  if (section === 'vessels') {
+    return (
+      <VesselManagementPage
+        session={session}
+        onSignOut={onSignOut}
+        onBack={() => setSection('home')}
+      />
+    )
   }
 
-  return <ResearcherDashboard session={session} onSignOut={onSignOut} />
+  if (section === 'locations') {
+    return (
+      <LocationManagementPage
+        session={session}
+        onSignOut={onSignOut}
+        onBack={() => setSection('home')}
+      />
+    )
+  }
+
+  if (session.profession === 'fisherman') {
+    return (
+      <FishermanFlow
+        session={session}
+        onSignOut={onSignOut}
+        onOpenVessels={() => setSection('vessels')}
+        onOpenLocations={() => setSection('locations')}
+      />
+    )
+  }
+
+  return (
+    <ResearcherDashboard
+      session={session}
+      onSignOut={onSignOut}
+      onOpenVessels={() => setSection('vessels')}
+      onOpenLocations={() => setSection('locations')}
+    />
+  )
 }
 
-function FishermanFlow({ session, onSignOut }: DashboardPageProps) {
+type WorkspaceProps = DashboardPageProps & {
+  onOpenVessels: () => void
+  onOpenLocations: () => void
+}
+
+function FishermanFlow({ session, onSignOut, onOpenVessels, onOpenLocations }: WorkspaceProps) {
   const marine = useMarineConditions()
   const [analysisQuery, setAnalysisQuery] = useState<string | null>(null)
 
@@ -98,6 +138,8 @@ function FishermanFlow({ session, onSignOut }: DashboardPageProps) {
         query={analysisQuery}
         onSignOut={onSignOut}
         onAskAgain={() => setAnalysisQuery(null)}
+        onOpenVessels={onOpenVessels}
+        onOpenLocations={onOpenLocations}
       />
     )
   }
@@ -108,15 +150,83 @@ function FishermanFlow({ session, onSignOut }: DashboardPageProps) {
       marine={marine}
       onSignOut={onSignOut}
       onAnalyze={setAnalysisQuery}
+      onOpenVessels={onOpenVessels}
+      onOpenLocations={onOpenLocations}
     />
   )
 }
 
-function ResearcherDashboard({ session, onSignOut }: DashboardPageProps) {
+function ResearcherDashboard({ session, onSignOut, onOpenVessels, onOpenLocations }: WorkspaceProps) {
   const [query, setQuery] = useState('')
   const profession = getProfession(session.profession)
   const prompts = PROMPTS[session.profession] ?? PROMPTS.researcher
   const firstName = session.name.split(' ')[0]
+  const [locations, setLocations] = useState<LocationRecord[]>([])
+  const [locationsStatus, setLocationsStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [locationTick, setLocationTick] = useState(0)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [weather, setWeather] = useState<WeatherNow | null>(null)
+  const [weatherStatus, setWeatherStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [weatherError, setWeatherError] = useState('')
+  const [weatherTick, setWeatherTick] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadLocations() {
+      setLocationsStatus('loading')
+      try {
+        const rows = await listLocations()
+        if (cancelled) return
+        setLocations(rows)
+        setLocationsStatus('ready')
+        setSelectedId((current) =>
+          current != null && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null,
+        )
+      } catch {
+        if (cancelled) return
+        setLocations([])
+        setSelectedId(null)
+        setLocationsStatus('error')
+      }
+    }
+    void loadLocations()
+    return () => {
+      cancelled = true
+    }
+  }, [locationTick])
+
+  useEffect(() => {
+    if (selectedId == null) {
+      setWeather(null)
+      setWeatherStatus('idle')
+      return
+    }
+    const locationId = selectedId
+    let cancelled = false
+    async function loadWeather() {
+      setWeatherStatus('loading')
+      setWeatherError('')
+      try {
+        const now = await fetchWeatherForLocation(locationId)
+        if (cancelled) return
+        setWeather(now)
+        setWeatherStatus('ready')
+      } catch (caught) {
+        if (cancelled) return
+        setWeather(null)
+        setWeatherStatus('error')
+        setWeatherError(
+          caught instanceof WeatherApiError ? caught.message : 'Weather is unavailable right now.',
+        )
+      }
+    }
+    void loadWeather()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId, weatherTick])
+
+  const selected = locations.find((row) => row.id === selectedId)
 
   return (
     <div className="dash">
@@ -142,6 +252,14 @@ function ResearcherDashboard({ session, onSignOut }: DashboardPageProps) {
             <span className="dash-avatar" aria-hidden="true">
               {firstName.slice(0, 1).toUpperCase()}
             </span>
+            <button type="button" className="dash-signout" onClick={onOpenVessels}>
+              <BoatIcon width={18} height={18} />
+              Vessels
+            </button>
+            <button type="button" className="dash-signout" onClick={onOpenLocations}>
+              <CompassIcon width={18} height={18} />
+              Locations
+            </button>
             <button type="button" className="dash-signout" onClick={onSignOut}>
               <LogoutIcon width={18} height={18} />
               Sign out
@@ -190,23 +308,24 @@ function ResearcherDashboard({ session, onSignOut }: DashboardPageProps) {
             </div>
 
             <p className="dash-disclaimer">
-              Data services are not connected in this prototype — figures below are illustrative.
+              Weather is live from the selected saved location. Advisories below remain illustrative.
             </p>
           </section>
 
           <section className="dash-side">
-            <div className="dash-metrics">
-              {METRICS.map((metric) => (
-                <article className="dash-metric" key={metric.label}>
-                  <p className="dash-metric-label">{metric.label}</p>
-                  <p className="dash-metric-value">
-                    {metric.value}
-                    <span>{metric.unit}</span>
-                  </p>
-                  <p className="dash-metric-trend">{metric.trend}</p>
-                </article>
-              ))}
-            </div>
+            <LiveWeatherPanel
+              locations={locations}
+              locationsStatus={locationsStatus}
+              selectedId={selectedId}
+              selected={selected}
+              weather={weather}
+              weatherStatus={weatherStatus}
+              weatherError={weatherError}
+              onSelect={setSelectedId}
+              onOpenLocations={onOpenLocations}
+              onRetryLocations={() => setLocationTick((tick) => tick + 1)}
+              onRetryWeather={() => setWeatherTick((tick) => tick + 1)}
+            />
 
             <div className="dash-panel">
               <h2>Live advisories</h2>
@@ -225,6 +344,157 @@ function ResearcherDashboard({ session, onSignOut }: DashboardPageProps) {
           </section>
         </main>
       </div>
+    </div>
+  )
+}
+
+type LiveWeatherPanelProps = {
+  locations: LocationRecord[]
+  locationsStatus: 'loading' | 'ready' | 'error'
+  selectedId: number | null
+  selected: LocationRecord | undefined
+  weather: WeatherNow | null
+  weatherStatus: 'idle' | 'loading' | 'ready' | 'error'
+  weatherError: string
+  onSelect: (id: number) => void
+  onOpenLocations: () => void
+  onRetryLocations: () => void
+  onRetryWeather: () => void
+}
+
+function locationOptionLabel(row: LocationRecord): string {
+  const place = row.location_name?.trim() || 'Unnamed location'
+  return `${place} · ${row.vessel_name}`
+}
+
+function formatMetric(value: number | null | undefined, digits = 0): string {
+  if (value == null || Number.isNaN(value)) return '—'
+  return value.toFixed(digits)
+}
+
+function LiveWeatherPanel({
+  locations,
+  locationsStatus,
+  selectedId,
+  selected,
+  weather,
+  weatherStatus,
+  weatherError,
+  onSelect,
+  onOpenLocations,
+  onRetryLocations,
+  onRetryWeather,
+}: LiveWeatherPanelProps) {
+  const place = selected?.location_name?.trim() || weather?.location_name?.trim() || 'Saved location'
+  const coords =
+    selected != null
+      ? `${selected.latitude.toFixed(3)}°, ${selected.longitude.toFixed(3)}°`
+      : weather != null
+        ? `${weather.latitude.toFixed(3)}°, ${weather.longitude.toFixed(3)}°`
+        : ''
+
+  const metrics = [
+    {
+      label: 'Temperature',
+      value: formatMetric(weather?.temperature_c, 0),
+      unit: '°C',
+      trend: weather?.condition ?? 'Current air temperature',
+    },
+    {
+      label: 'Condition',
+      value: weather?.condition ?? '—',
+      unit: '',
+      trend: coords ? `At ${coords}` : 'Open-Meteo current conditions',
+    },
+    {
+      label: 'Wind speed',
+      value: formatMetric(weather?.wind_kmh, 0),
+      unit: 'km/h',
+      trend: weather?.wind_direction
+        ? `${weather.wind_direction}${weather.wind_direction_deg != null ? ` · ${Math.round(weather.wind_direction_deg)}°` : ''}`
+        : 'Surface wind',
+    },
+    {
+      label: 'Wind direction',
+      value: weather?.wind_direction ?? '—',
+      unit: weather?.wind_direction_deg != null ? `${Math.round(weather.wind_direction_deg)}°` : '',
+      trend: 'Compass from Open-Meteo',
+    },
+    {
+      label: 'Rain',
+      value: formatMetric(weather?.precipitation_mm, 1),
+      unit: 'mm',
+      trend: 'Current precipitation',
+    },
+  ]
+
+  return (
+    <div className="dash-weather">
+      <div className="dash-weather-head">
+        <div>
+          <p className="dash-weather-kicker">Live weather</p>
+          <h2>{place}</h2>
+        </div>
+      </div>
+
+      {locationsStatus === 'loading' ? (
+        <p className="dash-weather-status">Loading saved locations…</p>
+      ) : locationsStatus === 'error' ? (
+        <div className="dash-weather-status">
+          <p>Could not load saved locations.</p>
+          <button type="button" className="dash-weather-action" onClick={onRetryLocations}>
+            Retry
+          </button>
+        </div>
+      ) : locations.length === 0 ? (
+        <div className="dash-weather-status">
+          <p>Save a location first to see live weather here.</p>
+          <button type="button" className="dash-weather-action" onClick={onOpenLocations}>
+            Add a location
+          </button>
+        </div>
+      ) : (
+        <>
+          <label className="dash-weather-picker">
+            <span>Saved location</span>
+            <select
+              value={selectedId ?? ''}
+              onChange={(event) => onSelect(Number(event.target.value))}
+              aria-label="Saved location"
+            >
+              {locations.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {locationOptionLabel(row)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {weatherStatus === 'loading' || weatherStatus === 'idle' ? (
+            <p className="dash-weather-status">Fetching live weather…</p>
+          ) : weatherStatus === 'error' ? (
+            <div className="dash-weather-status">
+              <p>{weatherError || 'Weather is unavailable right now.'}</p>
+              <button type="button" className="dash-weather-action" onClick={onRetryWeather}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="dash-metrics">
+              {metrics.map((metric) => (
+                <article className="dash-metric" key={metric.label}>
+                  <p className="dash-metric-label">{metric.label}</p>
+                  <p className={`dash-metric-value${metric.unit ? '' : ' is-text'}`}>
+                    {metric.value}
+                    {metric.unit ? <span>{metric.unit}</span> : null}
+                  </p>
+                  <p className="dash-metric-trend">{metric.trend}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
