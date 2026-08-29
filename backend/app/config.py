@@ -13,6 +13,17 @@ def _csv_list(value: str) -> list[str]:
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
+def _sqlalchemy_database_url(raw: str) -> str:
+    if raw.startswith("postgres://"):
+        raw = "postgresql+psycopg://" + raw[len("postgres://") :]
+    elif raw.startswith("postgresql://"):
+        raw = "postgresql+psycopg://" + raw[len("postgresql://") :]
+    if raw.startswith("postgresql+") and "sslmode=" not in raw:
+        separator = "&" if "?" in raw else "?"
+        raw = f"{raw}{separator}sslmode=require"
+    return raw
+
+
 class Settings:
     app_name: str
     app_version: str
@@ -29,7 +40,9 @@ class Settings:
             )
         )
         default_db = (BACKEND_DIR / "orca.db").as_posix()
-        self.database_url = os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
+        self.database_url = _sqlalchemy_database_url(
+            os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
+        )
 
 
 settings = Settings()
