@@ -132,10 +132,9 @@ function FishermanFlow({ session, onSignOut, onOpenVessels, onOpenLocations }: W
   if (analysisQuery) {
     return (
       <FishermanAnalysisPage
-        key={analysisQuery}
         session={session}
         marine={marine}
-        query={analysisQuery}
+        initialQuery={analysisQuery}
         onSignOut={onSignOut}
         onAskAgain={() => setAnalysisQuery(null)}
         onOpenVessels={onOpenVessels}

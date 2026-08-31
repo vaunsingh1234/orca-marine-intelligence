@@ -3,14 +3,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = BACKEND_DIR / ".env"
+load_dotenv(ENV_FILE, override=True)
 
 
 def _csv_list(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
-
-
-BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 def _sqlalchemy_database_url(raw: str) -> str:
@@ -29,6 +28,9 @@ class Settings:
     app_version: str
     cors_origins: list[str]
     database_url: str
+    ai_api_key: str
+    ai_base_url: str
+    ai_model: str
 
     def __init__(self) -> None:
         self.app_name = os.getenv("APP_NAME", "ORCA Marine Intelligence API")
@@ -43,6 +45,25 @@ class Settings:
         self.database_url = _sqlalchemy_database_url(
             os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
         )
+        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.ai_api_key = (
+            os.getenv("ORCA_AI_API_KEY", "").strip() or groq_key or openai_key
+        )
+        configured_base = os.getenv("ORCA_AI_BASE_URL", "").strip().rstrip("/")
+        if configured_base:
+            self.ai_base_url = configured_base
+        elif groq_key and not openai_key:
+            self.ai_base_url = "https://api.groq.com/openai/v1"
+        else:
+            self.ai_base_url = "https://api.openai.com/v1"
+        configured_model = os.getenv("ORCA_AI_MODEL", "").strip()
+        if configured_model:
+            self.ai_model = configured_model
+        elif "groq.com" in self.ai_base_url:
+            self.ai_model = "llama-3.1-8b-instant"
+        else:
+            self.ai_model = "gpt-4o-mini"
 
 
 settings = Settings()
